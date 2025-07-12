@@ -1,0 +1,6 @@
+flask==2.3.3
+requests==2.31.0
+feedparser==6.0.10
+yfinance==0.2.18
+pytrends==4.9.2
+gunicorn==21.2.0
