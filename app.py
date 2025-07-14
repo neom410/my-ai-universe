@@ -136,128 +136,216 @@ class UniverseDataExplorer:
         
         return exploration_results
     
-    def _generate_autonomous_insights(self):
-        """Generate insights autonomously - Enhanced version"""
-        try:
-            # Clear old insights if too many
-            if len(self.autonomous_insights) > 20:
-                self.autonomous_insights = self.autonomous_insights[-10:]
+def _generate_autonomous_insights(self):
+    """Generate ACTIONABLE insights with concrete data"""
+    try:
+        # Clear old insights if too many
+        if len(self.autonomous_insights) > 15:
+            self.autonomous_insights = self.autonomous_insights[-8:]
+        
+        # Get current data
+        financial_data = self.data_universe.get('financial', {})
+        domains = list(self.data_universe.keys())
+        total_entities = self.get_total_entities()
+        
+        if financial_data:
+            # CONCRETE PRICE ANALYSIS
+            gainers = []
+            losers = []
+            high_volume = []
+            cheap_gems = []
+            expensive_coins = []
             
-            # Always generate basic universe insight
-            domains = list(self.data_universe.keys())
-            total_entities = self.get_total_entities()
+            for symbol, data in financial_data.items():
+                if isinstance(data, dict):
+                    price = data.get('current_price', 0)
+                    change = data.get('price_change_24h', 0)
+                    market_cap = data.get('market_cap', 0)
+                    name = data.get('name', symbol)
+                    
+                    # Top gainers
+                    if change > 10:
+                        gainers.append((name, symbol, round(change, 1), price))
+                    
+                    # Top losers
+                    if change < -10:
+                        losers.append((name, symbol, round(change, 1), price))
+                    
+                    # High market cap (valuable)
+                    if market_cap and market_cap > 1000000000:  # >1B
+                        high_volume.append((name, symbol, price, market_cap))
+                    
+                    # Cheap potential gems
+                    if price and 0.01 <= price <= 1.0 and change > 5:
+                        cheap_gems.append((name, symbol, price, round(change, 1)))
+                    
+                    # Expensive coins
+                    if price and price > 100:
+                        expensive_coins.append((name, symbol, price, round(change, 1)))
             
-            # Universe overview insight
+            # Sort lists
+            gainers.sort(key=lambda x: x[2], reverse=True)  # By % change
+            losers.sort(key=lambda x: x[2])  # By % change (most negative first)
+            high_volume.sort(key=lambda x: x[3], reverse=True)  # By market cap
+            cheap_gems.sort(key=lambda x: x[3], reverse=True)  # By % change
+            expensive_coins.sort(key=lambda x: x[2], reverse=True)  # By price
+            
+            # ACTIONABLE INSIGHTS
+            
+            # 1. TOP GAINERS
+            if gainers:
+                top_gainers = gainers[:5]
+                insight_text = f"🚀 TOP GAINERS: "
+                for name, symbol, change, price in top_gainers:
+                    clean_symbol = symbol.replace('-USD', '')
+                    insight_text += f"{clean_symbol} +{change}% (${price:.4f}), "
+                insight_text = insight_text.rstrip(', ')
+                
+                self.autonomous_insights.append({
+                    'type': 'top_gainers',
+                    'description': insight_text,
+                    'actionable': f"Consider research on {len(top_gainers)} high-momentum coins",
+                    'data': top_gainers,
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # 2. TOP LOSERS (POTENTIAL OPPORTUNITIES)
+            if losers:
+                top_losers = losers[:3]
+                insight_text = f"📉 POTENTIAL OPPORTUNITIES (Big Drops): "
+                for name, symbol, change, price in top_losers:
+                    clean_symbol = symbol.replace('-USD', '')
+                    insight_text += f"{clean_symbol} {change}% (${price:.4f}), "
+                insight_text = insight_text.rstrip(', ')
+                
+                self.autonomous_insights.append({
+                    'type': 'potential_opportunities',
+                    'description': insight_text,
+                    'actionable': "Research if drops are temporary or fundamental issues",
+                    'data': top_losers,
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # 3. CHEAP GEMS ANALYSIS
+            if cheap_gems:
+                gems = cheap_gems[:3]
+                insight_text = f"💎 CHEAP GEMS (Rising & Under $1): "
+                for name, symbol, price, change in gems:
+                    clean_symbol = symbol.replace('-USD', '')
+                    insight_text += f"{clean_symbol} ${price:.4f} (+{change}%), "
+                insight_text = insight_text.rstrip(', ')
+                
+                self.autonomous_insights.append({
+                    'type': 'cheap_gems',
+                    'description': insight_text,
+                    'actionable': f"Low-price coins with upward momentum - research fundamentals",
+                    'data': gems,
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # 4. BLUE CHIP ANALYSIS
+            if high_volume:
+                blue_chips = high_volume[:5]
+                insight_text = f"🏦 BLUE CHIP STATUS: "
+                for name, symbol, price, mcap in blue_chips:
+                    clean_symbol = symbol.replace('-USD', '')
+                    mcap_b = mcap / 1000000000  # Convert to billions
+                    insight_text += f"{clean_symbol} ${price:.2f} (${mcap_b:.1f}B mcap), "
+                insight_text = insight_text.rstrip(', ')
+                
+                self.autonomous_insights.append({
+                    'type': 'blue_chip_analysis',
+                    'description': insight_text,
+                    'actionable': "Stable large-cap coins for conservative portfolio allocation",
+                    'data': blue_chips,
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # 5. EXPENSIVE COINS WATCH
+            if expensive_coins:
+                expensive = expensive_coins[:3]
+                insight_text = f"💰 HIGH-VALUE COINS: "
+                for name, symbol, price, change in expensive:
+                    clean_symbol = symbol.replace('-USD', '')
+                    insight_text += f"{clean_symbol} ${price:.0f} ({change:+.1f}%), "
+                insight_text = insight_text.rstrip(', ')
+                
+                self.autonomous_insights.append({
+                    'type': 'high_value_watch',
+                    'description': insight_text,
+                    'actionable': "Premium coins - track for institutional adoption signals",
+                    'data': expensive,
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # 6. MARKET TEMPERATURE
+            total_positive = len([x for x in financial_data.values() 
+                                if isinstance(x, dict) and x.get('price_change_24h', 0) > 0])
+            total_negative = len([x for x in financial_data.values() 
+                                if isinstance(x, dict) and x.get('price_change_24h', 0) < 0])
+            
+            if total_positive > total_negative:
+                market_sentiment = "BULLISH"
+                emoji = "🟢"
+            else:
+                market_sentiment = "BEARISH" 
+                emoji = "🔴"
+            
+            percentage_up = (total_positive / len(financial_data)) * 100
+            
             self.autonomous_insights.append({
-                'type': 'universe_overview',
-                'description': f"AI Universe contains {total_entities} entities across {len(domains)} domains: {', '.join(domains)}",
-                'entity_count': total_entities,
-                'domains': domains,
+                'type': 'market_sentiment',
+                'description': f"{emoji} MARKET SENTIMENT: {market_sentiment} - {percentage_up:.0f}% of coins are green ({total_positive} up, {total_negative} down)",
+                'actionable': f"Market is {market_sentiment.lower()} - adjust strategy accordingly",
+                'sentiment': market_sentiment,
                 'timestamp': datetime.now().isoformat()
             })
             
-            # Financial insights
-            financial_data = self.data_universe.get('financial', {})
-            if financial_data:
-                crypto_count = len(financial_data)
+            # 7. VOLATILITY ALERT
+            high_volatility = []
+            for symbol, data in financial_data.items():
+                if isinstance(data, dict):
+                    change = abs(data.get('price_change_24h', 0))
+                    if change > 20:  # Very volatile
+                        name = data.get('name', symbol)
+                        price = data.get('current_price', 0)
+                        high_volatility.append((name, symbol, change, price))
+            
+            if high_volatility:
+                vol_coins = sorted(high_volatility, key=lambda x: x[2], reverse=True)[:3]
+                insight_text = f"⚡ HIGH VOLATILITY ALERT: "
+                for name, symbol, change, price in vol_coins:
+                    clean_symbol = symbol.replace('-USD', '')
+                    insight_text += f"{clean_symbol} ±{change:.0f}% (${price:.4f}), "
+                insight_text = insight_text.rstrip(', ')
+                
                 self.autonomous_insights.append({
-                    'type': 'financial_discovery',
-                    'description': f"Discovered {crypto_count} cryptocurrencies with real-time market data",
-                    'details': f"Monitoring prices, market caps, and 24h changes for {crypto_count} digital assets",
-                    'crypto_count': crypto_count,
+                    'type': 'volatility_alert',
+                    'description': insight_text,
+                    'actionable': "Extreme volatility detected - high risk/reward potential",
+                    'data': vol_coins,
                     'timestamp': datetime.now().isoformat()
                 })
-                
-                # Analyze price movements (lowered threshold)
-                big_movers = []
-                stable_count = 0
-                
-                for symbol, data in financial_data.items():
-                    if isinstance(data, dict):
-                        change = data.get('price_change_24h', 0)
-                        if change is not None:
-                            if abs(change) > 5:  # 5% threshold
-                                big_movers.append((symbol, round(change, 2)))
-                            elif abs(change) < 2:  # Stable coins
-                                stable_count += 1
-                
-                if big_movers:
-                    self.autonomous_insights.append({
-                        'type': 'market_movement',
-                        'description': f"Detected {len(big_movers)} cryptocurrencies with significant price movement (>5%)",
-                        'details': big_movers[:5],  # Top 5 movers
-                        'total_movers': len(big_movers),
-                        'timestamp': datetime.now().isoformat()
-                    })
-                
-                if stable_count > 10:
-                    self.autonomous_insights.append({
-                        'type': 'market_stability',
-                        'description': f"Market stability detected: {stable_count} cryptocurrencies showing low volatility (<2%)",
-                        'stable_count': stable_count,
-                        'timestamp': datetime.now().isoformat()
-                    })
-                
-                # Top crypto analysis
-                crypto_list = list(financial_data.keys())[:10]  # Top 10
-                self.autonomous_insights.append({
-                    'type': 'top_crypto_monitoring',
-                    'description': f"Monitoring top cryptocurrencies: {', '.join([c.replace('-USD', '') for c in crypto_list])}",
-                    'top_cryptos': crypto_list,
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # News insights
-            news_data = self.data_universe.get('news', {})
-            if news_data:
-                self.autonomous_insights.append({
-                    'type': 'news_monitoring',
-                    'description': f"Active monitoring of {len(news_data)} news sources for real-time updates",
-                    'sources': list(news_data.keys()),
-                    'coverage': "Technology, Business, Finance",
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # Research insights
-            research_data = self.data_universe.get('research', {})
-            if research_data:
-                self.autonomous_insights.append({
-                    'type': 'research_tracking',
-                    'description': f"Tracking {len(research_data)} research categories for scientific breakthroughs",
-                    'categories': list(research_data.keys()),
-                    'focus_areas': "AI, Machine Learning, Computer Vision, Robotics",
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # Cross-domain analysis
-            if len(domains) > 2:
-                self.autonomous_insights.append({
-                    'type': 'cross_domain_analysis',
-                    'description': f"Cross-domain intelligence: Connecting patterns across {', '.join(domains)} for deeper insights",
-                    'connections': f"Financial trends ↔ News sentiment ↔ Research developments",
-                    'potential': "Predictive analysis capabilities active",
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # System status insight
-            self.autonomous_insights.append({
-                'type': 'system_status',
-                'description': f"AI Universe Explorer operating autonomously - Last update: {datetime.now().strftime('%H:%M:%S')}",
-                'status': "Active exploration and pattern recognition in progress",
-                'next_update': "Continuous monitoring every 5 minutes",
-                'timestamp': datetime.now().isoformat()
-            })
-            
-            print(f"💡 Generated {len(self.autonomous_insights)} total insights")
-            
-        except Exception as e:
-            print(f"Insight generation error: {e}")
-            # Generate fallback insight
-            self.autonomous_insights.append({
-                'type': 'system_alert',
-                'description': f"AI exploring universe - {self.get_total_entities()} entities discovered so far",
-                'timestamp': datetime.now().isoformat()
-            })
+        
+        # 8. SYSTEM STATUS WITH CONCRETE DATA
+        self.autonomous_insights.append({
+            'type': 'discovery_summary',
+            'description': f"📊 ACTIVE MONITORING: {len(financial_data)} cryptocurrencies, {len(self.data_universe.get('news', {}))} news sources, {len(self.data_universe.get('research', {}))} research domains",
+            'actionable': f"Real-time data on {len(financial_data)} digital assets available for analysis",
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        print(f"💡 Generated {len(self.autonomous_insights)} actionable insights")
+        
+    except Exception as e:
+        print(f"Insight generation error: {e}")
+        # Fallback insight
+        self.autonomous_insights.append({
+            'type': 'system_status',
+            'description': f"🔍 AI actively exploring universe - {self.get_total_entities()} entities tracked",
+            'actionable': "Data collection in progress - check back for detailed analysis",
+            'timestamp': datetime.now().isoformat()
+        })
     
     def _universal_search(self, search_term):
         """Search across entire universe"""
